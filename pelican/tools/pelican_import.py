@@ -12,10 +12,11 @@ import time
 
 from codecs import open
 
-from six.moves.urllib.error import URLError
-from six.moves.urllib.parse import urlparse
-from six.moves.urllib.request import urlretrieve
+from urllib2 import URLError
+from urllib import urlretrieve
+import urlparse
 
+import six
 # because logging.setLoggerClass has to be called before logging.getLogger
 from pelican.log import init
 from pelican.utils import SafeDatetime, slugify
@@ -27,7 +28,6 @@ except ImportError:
     unescape = HTMLParser().unescape
 
 logger = logging.getLogger(__name__)
-
 
 def decode_wp_content(content, br=True):
     pre_tags = {}
@@ -173,6 +173,10 @@ def wp2fields(xml, wp_custpost=False):
             status = 'published' if item.find('status').string == "publish" \
                 else item.find('status').string
 
+            postmeta = {}
+            for meta in item.findAll('postmeta'):
+                postmeta[meta.find('meta_key').string] = meta.find('meta_value').string
+
             kind = 'article'
             post_type = item.find('post_type').string
             if post_type == 'page':
@@ -189,7 +193,7 @@ def wp2fields(xml, wp_custpost=False):
                 else:
                     kind = post_type
             yield (title, content, filename, date, author, categories,
-                   tags, status, kind, 'wp-html')
+                   tags, postmeta, status, kind, 'wp-html')
 
 
 def dc2fields(file):
@@ -534,7 +538,7 @@ def build_header(title, date, author, categories, tags, slug,
 
 
 def build_markdown_header(title, date, author, categories, tags,
-                          slug, status=None, attachments=None):
+                          slug, postmeta, status=None, attachments=None):
     """Build a header from a list of fields"""
     header = 'Title: %s\n' % title
     if date:
@@ -547,6 +551,20 @@ def build_markdown_header(title, date, author, categories, tags,
         header += 'Tags: %s\n' % ', '.join(tags)
     if slug:
         header += 'Slug: %s\n' % slug
+    if postmeta:
+        for metaname, metavalue in postmeta.iteritems():
+            if '_yoast_wpseo_metadesc' in metaname:
+                metaname = 'Metadesc'
+            elif '_yoast_wpseo_opengraph-image' in metaname:
+                metaname = 'Image'
+                if '/contenido/uploads' in metavalue:
+                    image_data = metavalue.split('/')
+                    metavalue = image_data[0] + '//' + image_data[2] + '/images/' + image_data[-1]
+            elif '_yoast_wpseo_focuskw' in metaname:
+                metaname = 'Keyword'
+            else:
+                continue
+            header += '{}: {}\n'.format(metaname, metavalue)
     if status:
         header += 'Status: %s\n' % status
     if attachments:
@@ -680,7 +698,7 @@ def fields2pelican(
         dircat=False, strip_raw=False, disable_slugs=False,
         dirpage=False, filename_template=None, filter_author=None,
         wp_custpost=False, wp_attach=False, attachments=None):
-    for (title, content, filename, date, author, categories, tags, status,
+    for (title, content, filename, date, author, categories, tags, postmeta, status,
             kind, in_markup) in fields:
         if filter_author and filter_author != author:
             continue
@@ -698,7 +716,7 @@ def fields2pelican(
         ext = get_ext(out_markup, in_markup)
         if ext == '.md':
             header = build_markdown_header(
-                title, date, author, categories, tags, slug,
+                title, date, author, categories, tags, slug, postmeta,
                 status, attached_files)
         else:
             out_markup = 'rst'

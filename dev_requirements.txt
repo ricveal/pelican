@@ -1,12 +1,11 @@
-# Tests
-mock
-
-# Optional Packages
-Markdown
-BeautifulSoup4
-lxml
-typogrify
-
-# To perform release
+beautifulsoup4==4.4.1
 bumpr==0.2.0
-wheel
+funcsigs==0.4
+lxml==3.5.0
+Markdown==2.6.5
+mock==1.3.0
+pbr==1.8.1
+six==1.10.0
+smartypants==1.8.6
+typogrify==2.0.7
+wheel==0.26.0
