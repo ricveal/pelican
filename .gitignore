@@ -8,6 +8,8 @@ tags
 six-*.egg/
 *.orig
 
+output/
+
 # gitignore.io
 
 ### PyCharm ###
